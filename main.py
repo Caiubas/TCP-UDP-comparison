@@ -1,4 +1,6 @@
 from datetime import datetime
+from time import sleep
+
 from udpFileUpload import *
 from tcpFileDownload import *
 import pyshark
@@ -10,7 +12,7 @@ import numpy as np
 
 load_dotenv()
 
-def log_data(data_dict, filename="log.csv"):
+def log_data(data_dict, filename="ifscwifi.csv"):
     """
     Registra os dados de resultado em um .csv, incluindo dados estatísticos e timestamp da realização do teste.
     :param data_dict:
@@ -113,50 +115,54 @@ def compare_tcp_udp(epochs: int = 1, file_name: str = "small", file_sufix: str =
     corrupted_bytes = []
     tcp_time_outs = 0
     udp_time_outs = 0
-
+    epoch = 0
 
     print("UDP upload: ")
-    for epoch in range(epochs):
+    epoch = 0
+    while epoch < epochs:
         print(f"{(100*epoch / epochs):.4}%...", end="")
         try:
             new_time, hash = upload_file_udp(file_name=file_name, epoch=epoch, file_sufix=file_sufix, host=host_ip, port=udp_port)
         except Exception as e:
             print(e)
             udp_time_outs += 1
-            epoch -= epochs
             continue
         original_hash.append(hash)
         total_time_upload_udp += new_time
         times_udp.append(new_time)
+        epoch += 1
 
     print("\nTCP download: ")
-    for epoch in range(epochs):
+    epoch = 0
+    while epoch < epochs:
         print(f"{(100*epoch / epochs):.4}%...", end="")
         try:
             new_time, hash = download_file_tcp(file_name=file_name, epoch=epoch, file_sufix=file_sufix, host=host_ip, port=tcp_port)
         except Exception as e:
             print(e)
             udp_time_outs += 1
-            epoch -= epochs
             continue
         hash_back.append(hash)
         total_time_download_tcp += new_time
         times_tcp.append(new_time)
+        epoch += 1
     print("\n")
 
-    response = "n"
+    response = "y"
     while not response.lower() == "y":
         print("proceed to download hashes?")
         response = input("y/n? ")
 
-    for epoch in range(epochs):
+    sleep(2)
+    epoch = 0
+    while epoch < epochs:
         try:
             new_time, hash = download_file_tcp(file_name=file_name, epoch=epoch, file_sufix="_hash.txt", host=host_ip, port=tcp_port)
         except Exception as e:
             print(e)
-            epoch -= epochs
             continue
         hash_server.append(hash)
+        epoch += 1
 
     for epoch in range(epochs):
         if original_hash[epoch] != hash_server[epoch]:
@@ -197,21 +203,22 @@ def compare_tcp_udp(epochs: int = 1, file_name: str = "small", file_sufix: str =
 
 
 if __name__ == "__main__":
-    epochs = 30
+    epochs = 53
     file_name = "small"
     file_sufix = ".jpg"
     host_ip = os.getenv("HOST_IP")
     tcp_port = 8883
     udp_port = 8000
-    file_names = ["small", "hd", "drum", "drum2"]
+    csv = input("whats your csv name?")
+    file_names = ["small", "hd", "drum", "drum_2"]
     file_suffixes = [".jpg", ".jpg", ".mp3", ".mp3"]
-
+    delete_downloaded_files_on(".")
     for i in range(len(file_names)):
-        delete_downloaded_files_on(".")
+        #delete_downloaded_files_on(".")
         results = compare_tcp_udp(epochs=epochs, file_name=file_names[i], file_sufix=file_suffixes[i], host_ip=host_ip, tcp_port=tcp_port, udp_port=udp_port)
         print_results(results)
-        log_data(results)
-        input("press enter to continue...")
+        log_data(results, csv + ".csv")
+        #input("press enter to continue...")
 
     input("Press enter to continue and delete the downloaded files...")
     delete_downloaded_files_on(".")
